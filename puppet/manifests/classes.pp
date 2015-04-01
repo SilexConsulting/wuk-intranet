@@ -284,7 +284,6 @@ define intranet (
   $docroot              = '/sites/intranet/wuk',
   $serveraliases        = [],
 ) {
-    include intranet_db
   apache::vhost { $name:
     serveraliases               => $serveraliases,
     port                        => '80',
@@ -443,4 +442,57 @@ define groupintranetv2(
 ) {
   apache::vhost { "${name}.wolseley.co.uk":
   }
+}
+
+define webnode(
+  $prefix,
+) {
+
+  include prod_defaults
+
+  class { 'apache':
+    mpm_module                  => 'prefork',
+  }
+
+  include apache::mod::rewrite
+  include apache::mod::passenger
+  include apache::mod::perl
+
+  class { 'php52': }
+
+  file { [ "/sites", "/sites/intranet", "/sites/intranet2" ]:
+    ensure                      => "directory",
+  }
+
+  groupintranet { "ssl-${prefix}groupintranet.wolseley.com":
+    ssl           => false, # THIS SHOULD BE TRUE TODO
+    docroot       => '/sites/intranet/groupv2',
+    serveradmin   => 'it.ops@wolseley.co.uk',
+    serveraliases => ["${prefix}.groupintranet.wolseley.com"]
+  }
+
+  groupintranet { "${prefix}groupintranet.wolseley.com":
+    ssl         => false,
+    docroot     => '/sites/intranet/groupv2',
+    serveradmin => 'web_admin_ripon@wolseley.co.uk',
+  }
+
+  intranet2 { "${prefix}intranet2.wolseley.co.uk" :
+    docroot       => '/sites/intranet2/wuk',
+    ssl           => false, # THIS SHOULD BE TRUE TODO
+    serveraliases => ["${prefix}.intranet2.wolseley.com"],
+  }
+
+  intranet { "${prefix}intranet.wolseley.co.uk":
+    serveraliases => ["www.${prefix}intranet.wolseley.com"],
+  }
+
+}
+
+class dbnode{
+
+  include prod_defaults
+  class {'beluga::mysql_server': }
+  class {'intranet_db':}
+
 }
