@@ -10,13 +10,6 @@ then
   to_provision='/vagrant/vagrant.pp'
 fi
 
-# runs once
-if [ ! -f /vagrant/keys/private_key.pkcs7.pem ];
-then
-    cd /home/vagrant
-    eyaml createkeys
-fi
-
 # Don't change config if there are already keys
 if [ ! -f /home/vagrant/.ssh/id_rsa ];
 then
@@ -50,6 +43,12 @@ then
 
 fi
 
+# runs once
+if [ ! -f /vagrant/keys/private_key.pkcs7.pem ];
+then
+    cd /home/vagrant
+    eyaml createkeys
+fi
 
 /usr/bin/puppet apply --verbose \
   --manifestdir=${puppet_base}/manifests \
