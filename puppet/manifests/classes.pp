@@ -12,7 +12,12 @@ class all_defaults {
 
 class prod_defaults {
   class {'wuk_defaults': }
-  class {'sudo': }
+
+  class { 'sudo':
+    purge                     => false,
+    config_file_replace       => false,
+  }
+
   host {'e02414': # Intranet LAMP 01
     ip => '10.210.100.32'
   }
