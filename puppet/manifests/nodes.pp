@@ -25,6 +25,16 @@ node e03422 {
   webnode { 'dev':
     prefix => 'dev.'
   }
+
+  class { 'beluga::developer_tools':
+    install_grunt             => false,
+    install_git               => true,
+  }
+
+  class { 'jenkins':
+    configure_firewall        => false,
+  }
+
 }
 
 # Intranet LinuxStage01
