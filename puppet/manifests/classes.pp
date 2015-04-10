@@ -79,18 +79,19 @@ class wuk_groups {
 }
 
 class intranet_db {
-  mysql_user { ["intranet@%"]:
+  $db_pass = hiera("intranet_db::user_password", 'password')
+  mysql_user { ["intranet@localhost"]:
     ensure => 'present',
-    password_hash => mysql_password($intranet_db::user_password),
+    password_hash => mysql_password($db_pass),
   }
-  mysql_grant { ["intranet@%"]:
+  mysql_grant { ['intranet@localhost/intranet2']:
     ensure     => 'present',
     options    => ['GRANT'],
     privileges => ['ALL'],
     table      => '*.*',
-    user       => ["intranet@%"],
+    user       => ['intranet@localhost'],
   }
- mysql_database { 'standards':
+ mysql_database { 'intranet2':
       ensure  => 'present',
       charset => 'utf8',
   }
@@ -154,6 +155,7 @@ define intranet2 (
     false => '80',
   }
   apache::vhost {$name:
+    manage_docroot              => false,
     serveraliases               => $serveraliases,
     port                        => $port,
     serveradmin                 => 'web_admin_ripon@wolseley.co.uk',
@@ -164,15 +166,11 @@ define intranet2 (
         rewrite_rule            => ['^/(.*) http://www.bathstore.com/__admin$2 [R,L]'],
       },
       {
-        rewrite_cond            => ['%{HTTP_HOST} !^intranet2.wolseley.co.uk$ [NC]', '%{HTTP_HOST} !^$'],
-        rewrite_rule            => ['^/(.*) http://intranet2.wolseley.co.uk/$1 [R]']
+        rewrite_cond            => ["%{HTTP_HOST} !^${name}$ [NC]", '%{HTTP_HOST} !^$'],
+        rewrite_rule            => ["^/(.*) http://${name}/\$1 [R]"]
       },
       {
         rewrite_rule            => ['^/$ /index.php [L,R=301]']
-      },
-      {
-        rewrite_cond            => ['%{TIME_YEAR}%{TIME_MON}%{TIME_DAY} =20090119 [OR]','%{TIME_YEAR}%{TIME_MON}%{TIME_DAY} =20090224','%{TIME_HOUR}%{TIME_MIN} >0800','%{TIME_HOUR}%{TIME_MIN} <1200'],
-        rewrite_rule            => ['^/index.php http://live-qna.wolseley.co.uk [L,R=301]']
       },
       {
         rewrite_cond            => ['%{REQUEST_METHOD} ^TRAC(E|K)'],
@@ -294,7 +292,7 @@ define intranet (
     port                        => '80',
     serveradmin                 => 'web_admin_ripon@wolseley.co.uk',
     docroot                     => $docroot,
-
+    manage_docroot              => false,
     redirect_status             => 'permanent',
     redirect_source             => '/testarena.html',
     redirect_dest               => "http://${intranet2}/testarena.html",
@@ -421,14 +419,15 @@ define intranet2DEMO(
   apache::vhost { "${name}.wolseley.co.uk":
     port                        => '80',
     docroot                     => $docroot,
+    manage_docroot              => false,
     override                    => 'All',
     php_values                  => ['max_execution_time 120'],
     directories                 => [
       {
         allow_override          => ['All'],
-        path                    => "${docroot}/wuk",
+        path                    => "${docroot}/current",
         options                 => ['FollowSymLinks', '-MultiViews'],
-       php_values              => ["include_path \"${docroot}/wuk\"", "include_path \"${docroot}/pip\""],
+       php_values              => ["include_path \"${docroot}/current\"", "include_path \"${docroot}/pip\""],
         custom_fragment         => 'RailsBaseURI /apps
 RailsBaseURI /qna
 zend.ze1_compatibility_mode Off',
@@ -465,8 +464,12 @@ define webnode(
 
   class { 'php52': }
 
-  file { [ "/sites", "/sites/intranet", "/sites/intranet2" ]:
+  $files = [ "/sites", "/sites/intranet", "/sites/intranet2", "/sites/rails", "/sites/rails/qna", "/sites/rails/apps" ]
+
+  file { $files:
     ensure                      => "directory",
+    group                       => "apache",
+    owner                       => "jenkins",
   }
 
   groupintranet { "ssl-${prefix}groupintranet.wolseley.com":
@@ -483,7 +486,7 @@ define webnode(
   }
 
   intranet2 { "${prefix}intranet2.wolseley.co.uk" :
-    docroot       => '/sites/intranet2/wuk',
+    docroot       => '/sites/intranet2/current',
     ssl           => false, # THIS SHOULD BE TRUE TODO
     serveraliases => ["${prefix}.intranet2.wolseley.com"],
   }
